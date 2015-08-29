@@ -1,0 +1,222 @@
+package model.securityGameModels.sparsGameModels;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import model.Configuration;
+import model.securityGameModels.SecurityGame;
+import model.securityGameModels.SingleObjectiveTarget;
+
+public class BayesianSparsGame {
+	public int numAttackerTypes;
+	public int numOffices;
+	public int numSchedules;
+	public int numTargetsPerSchedule;
+	public int numResources;
+	public int numTargets;
+	public Map<SparsGame, Double> bayesianGame;
+	public boolean createDummyHomeTarget;
+	public List<Schedule> lstSchedules;
+	public List<Integer> officeSupply;
+	public List<List<Boolean>> officeToScheduleMapping;
+	public Map<SparsGame, SingleObjectiveTarget> mapDummyHomeTargets;
+	public Set<Integer> setTargetIds;
+	public int maxNumTargetsPerSchedule;
+	
+	public BayesianSparsGame(int numAttackerTypes, int numOffices,
+			int numSchedules, int numSchedulesPerTarget, int numResources,
+			int numTargets) {
+		super();
+		// SparsGame.resetCounter();
+		this.numAttackerTypes = numAttackerTypes;
+		this.numOffices = numOffices;
+		this.numSchedules = numSchedules;
+		this.numTargetsPerSchedule = numSchedulesPerTarget;
+		this.numResources = numResources;
+		this.numTargets = numTargets;
+		this.bayesianGame = new HashMap<SparsGame, Double>();
+		this.mapDummyHomeTargets = new HashMap<SparsGame, SingleObjectiveTarget>();
+		this.setTargetIds = null;
+		this.maxNumTargetsPerSchedule = 0;
+	}
+
+	public void setCreateDummyHomeSite(boolean b) {
+		// TODO Auto-generated method stub
+		this.createDummyHomeTarget = b;
+	}
+
+	public static BayesianSparsGame makeBayesianGame(SparsGame spg) {
+		BayesianSparsGame bsg = new BayesianSparsGame(1, spg.numOffices,
+				spg.numSchedules, spg.numTargetsPerSchedule, spg.numResources,
+				spg.numTargets);
+		bsg.bayesianGame.put(spg, 1.0);
+		bsg.lstSchedules = spg.lstSchedules;
+		bsg.officeSupply = spg.officeSupply;
+		bsg.officeToScheduleMapping = spg.officeToScheduleMapping;
+		bsg.createDummyHomeTarget = spg.createDummyHomeTarget;
+		bsg.mapDummyHomeTargets = new HashMap<SparsGame, SingleObjectiveTarget>();
+		if (bsg.createDummyHomeTarget) {
+			bsg.mapDummyHomeTargets.put(spg, spg.getDummyHomeTarget());
+		}
+		bsg.maxNumTargetsPerSchedule = spg.maxNumTargetsPerSchedule;
+		
+		return bsg;
+	}
+
+	public Map<SparsGame, SingleObjectiveTarget> getDummyHomeTarget() {
+		// TODO Auto-generated method stub
+		if (this.createDummyHomeTarget) {
+			mapDummyHomeTargets = new HashMap<SparsGame, SingleObjectiveTarget>();
+			for (SparsGame sg : this.bayesianGame.keySet()) {
+				mapDummyHomeTargets.put(sg, sg.getDummyHomeTarget());
+			}
+			return mapDummyHomeTargets;
+		}
+		return null;
+	}
+
+	public SparsGame getOneRandomSparsGame() {
+		for (SparsGame sg : this.bayesianGame.keySet()) {
+			return sg;
+		}
+		return null;
+	}
+
+	/**
+	 * Generates a restricted game with only the ids given in listGameIds
+	 * 
+	 * @param listGameIds
+	 * @return
+	 */
+	public BayesianSparsGame getRestrictedGame(List<Integer> listGameIds) {
+		BayesianSparsGame restrictedBSG = new BayesianSparsGame(
+				listGameIds.size(), this.numOffices, this.numSchedules,
+				this.numTargetsPerSchedule, this.numResources, this.numTargets);
+		for (SparsGame g : this.bayesianGame.keySet()) {
+			if (listGameIds.contains(g.id)) {
+				restrictedBSG.bayesianGame.put(g, this.bayesianGame.get(g));
+				restrictedBSG.lstSchedules = this.lstSchedules;
+				restrictedBSG.officeSupply = this.officeSupply;
+				restrictedBSG.officeToScheduleMapping = this.officeToScheduleMapping;
+			}
+		}
+		return restrictedBSG;
+	}
+	public SparsGame getRestrictedGame(int gameId) {		
+		for (SparsGame g : this.bayesianGame.keySet()) {
+			if (g.id == gameId ) {				
+				return g;
+			}
+		}
+		return null;
+	}
+
+	public Set<Integer> getSetGameIDs() {
+		Set<Integer> setGameIds = new HashSet<Integer>();
+		for (SecurityGame g : this.bayesianGame.keySet()) {
+			setGameIds.add(g.id);
+		}
+		return setGameIds;
+	}
+	
+	public Set<Integer> getSetTargetIDs() {
+		if ( this.setTargetIds == null )  {
+			this.setTargetIds = new HashSet<Integer>();
+			
+			for ( SingleObjectiveTarget t : this.getOneRandomSparsGame().setTargets ) {
+				this.setTargetIds.add(t.id);
+			}
+		}		
+		return this.setTargetIds;		
+	}
+
+	public void generateGameFixed(double defCovPayoff, double defUncovPayoff,
+			double attCovPayoff, double attUncovPayoff) {
+		List<Integer> weights = new ArrayList<Integer>();
+		int sum = 0;
+		for (int ty = 1; ty <= this.numAttackerTypes; ty++) {
+			weights.add((int) lpWrapper.Configuration.MM);
+			sum += lpWrapper.Configuration.MM;
+		}
+
+		for (int ty = 1; ty <= this.numAttackerTypes; ty++) {
+			double probability = weights.get(ty - 1) * 1.0 / sum;
+			SparsGame at1 = new SparsGame(this.numTargets, this.numResources,
+					this.numOffices, this.numSchedules,
+					this.numTargetsPerSchedule);
+			at1.setCreateDummyHomeSite(this.createDummyHomeTarget);			
+			if (ty == 1) {				
+				at1.generateGameFixed(defCovPayoff, defUncovPayoff,
+						attCovPayoff, attUncovPayoff);
+				this.lstSchedules = at1.lstSchedules;
+				this.officeSupply = at1.officeSupply;
+				this.officeToScheduleMapping = at1.officeToScheduleMapping;
+				this.maxNumTargetsPerSchedule = at1.maxNumTargetsPerSchedule;
+			} else {
+				at1.lstSchedules = this.lstSchedules;
+				at1.officeSupply = this.officeSupply;
+				at1.officeToScheduleMapping = this.officeToScheduleMapping;
+				at1.maxNumTargetsPerSchedule = this.maxNumTargetsPerSchedule;
+				at1.initializeFixed(defCovPayoff, defUncovPayoff, attCovPayoff, attUncovPayoff);
+			}
+			bayesianGame.put(at1, probability);
+			if (this.createDummyHomeTarget) {
+				this.mapDummyHomeTargets.put(at1, at1.getDummyHomeTarget());
+			}
+		}
+	}
+
+	public void generateGameRandom() {
+		List<Integer> weights = new ArrayList<Integer>();
+		int sum = 0;
+		int randomNumber;
+		for (int ty = 1; ty <= this.numAttackerTypes; ty++) {
+			randomNumber = Configuration.randomGenerator
+					.nextInt(lpWrapper.Configuration.MM);
+			sum += randomNumber;
+			weights.add(randomNumber);
+		}
+
+		for (int ty = 1; ty <= this.numAttackerTypes; ty++) {
+			double probability = weights.get(ty - 1) * 1.0 / sum;
+			SparsGame at1 = new SparsGame(this.numTargets, this.numResources,
+					this.numOffices, this.numSchedules,
+					this.numTargetsPerSchedule);
+			at1.setCreateDummyHomeSite(this.createDummyHomeTarget);
+			if (ty == 1) {
+				at1.generateGameRandom();
+				this.lstSchedules = at1.lstSchedules;
+				this.officeSupply = at1.officeSupply;
+				this.officeToScheduleMapping = at1.officeToScheduleMapping;
+				this.maxNumTargetsPerSchedule = at1.maxNumTargetsPerSchedule;
+			} else {
+				at1.lstSchedules = this.lstSchedules;
+				at1.officeSupply = this.officeSupply;
+				at1.officeToScheduleMapping = this.officeToScheduleMapping;
+				at1.maxNumTargetsPerSchedule = this.maxNumTargetsPerSchedule;
+				at1.initializeRandom();
+			}
+			bayesianGame.put(at1, probability);
+			if (this.createDummyHomeTarget) {
+				this.mapDummyHomeTargets.put(at1, at1.getDummyHomeTarget());
+			}
+
+		}
+	}
+
+	@Override
+	public String toString() {
+		return "BayesianSparsGame [numAttackerTypes=" + numAttackerTypes
+				+ ", numOffices=" + numOffices + ", numSchedules="
+				+ numSchedules + ", numSchedulesPerTarget="
+				+ numTargetsPerSchedule + ", numResources=" + numResources
+				+ ", numTargets=" + numTargets + ", bayesianGame="
+				+ bayesianGame + ", createDummyHomeTarget="
+				+ createDummyHomeTarget + "]";
+	}
+
+}
